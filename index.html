@@ -40,12 +40,32 @@
         .hold-label { font-size: 10px; color: #aaa; margin-bottom: 5px; letter-spacing: 1px; font-weight: bold; }
         #canvasHold { background: #111; border: 1px solid #444; border-radius: 4px; display: block; margin: 0 auto; }
 
-        .slider-group { display: flex; gap: 30px; justify-content: center; height: 160px; margin-top: 10px; }
+        /* INCREASED HEIGHT TO FIT TEXT BELOW */
+        .slider-group { display: flex; gap: 30px; justify-content: center; height: 180px; margin-top: 10px; }
+        
         .v-slider-wrapper { display: flex; flex-direction: column; align-items: center; height: 100%; }
-        input[type=range].v-slider { -webkit-appearance: none; width: 130px; height: 6px; background: #333; outline: none; border-radius: 3px; transform: rotate(-90deg); transform-origin: center; margin: auto; cursor: pointer; }
-        input[type=range].v-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #00dfff; cursor: pointer; border: 2px solid #fff; box-shadow: 0 0 10px rgba(0,223,255,0.5); }
+        
+        input[type=range].v-slider { 
+            -webkit-appearance: none; width: 130px; height: 6px; background: #333; 
+            outline: none; border-radius: 3px; 
+            transform: rotate(-90deg); transform-origin: center; 
+            margin: auto; cursor: pointer; 
+        }
+        input[type=range].v-slider::-webkit-slider-thumb { 
+            -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; 
+            background: #00dfff; cursor: pointer; border: 2px solid #fff; 
+            box-shadow: 0 0 10px rgba(0,223,255,0.5); 
+        }
+        
         .slider-label { margin-top: 15px; font-size: 10px; color: #666; font-weight: bold; letter-spacing: 1px; }
-        .slider-val { font-size: 11px; color: #00dfff; margin-bottom: -55px; z-index: 2; font-weight: bold; }
+        
+        /* UPDATED: Moves value below label */
+        .slider-val { 
+            font-size: 11px; 
+            color: #00dfff; 
+            margin-top: 5px; 
+            font-weight: bold; 
+        }
 
         .control-row { width: 100%; margin-bottom: 15px; text-align: center; }
         input[type=range].h-slider { width: 100%; -webkit-appearance: none; height: 6px; background: #333; border-radius: 3px; }
@@ -68,8 +88,16 @@
             <h3>Left Eye</h3>
             <div class="preview-box"><canvas id="canvasL" class="preview-canvas" width="130" height="260"></canvas></div>
             <div class="slider-group">
-                <div class="v-slider-wrapper"><span class="slider-val" id="val-L-Fall">100%</span><input type="range" class="v-slider" id="slider-L-Fall" min="0" max="1" step="0.01" value="1.0"><span class="slider-label">FALLING</span></div>
-                <div class="v-slider-wrapper"><span class="slider-val" id="val-L-Stat">10%</span><input type="range" class="v-slider" id="slider-L-Stat" min="0" max="1" step="0.01" value="0.1"><span class="slider-label">STATIC</span></div>
+                <div class="v-slider-wrapper">
+                    <input type="range" class="v-slider" id="slider-L-Fall" min="0" max="1" step="0.01" value="1.0">
+                    <span class="slider-label">FALLING</span>
+                    <span class="slider-val" id="val-L-Fall">100%</span>
+                </div>
+                <div class="v-slider-wrapper">
+                    <input type="range" class="v-slider" id="slider-L-Stat" min="0" max="1" step="0.01" value="0.1">
+                    <span class="slider-label">STATIC</span>
+                    <span class="slider-val" id="val-L-Stat">10%</span>
+                </div>
             </div>
         </div>
 
@@ -113,8 +141,16 @@
             <h3>Right Eye</h3>
             <div class="preview-box"><canvas id="canvasR" class="preview-canvas" width="130" height="260"></canvas></div>
             <div class="slider-group">
-                <div class="v-slider-wrapper"><span class="slider-val" id="val-R-Fall">10%</span><input type="range" class="v-slider" id="slider-R-Fall" min="0" max="1" step="0.01" value="0.1"><span class="slider-label">FALLING</span></div>
-                <div class="v-slider-wrapper"><span class="slider-val" id="val-R-Stat">100%</span><input type="range" class="v-slider" id="slider-R-Stat" min="0" max="1" step="0.01" value="1.0"><span class="slider-label">STATIC</span></div>
+                <div class="v-slider-wrapper">
+                    <input type="range" class="v-slider" id="slider-R-Fall" min="0" max="1" step="0.01" value="0.1">
+                    <span class="slider-label">FALLING</span>
+                    <span class="slider-val" id="val-R-Fall">10%</span>
+                </div>
+                <div class="v-slider-wrapper">
+                    <input type="range" class="v-slider" id="slider-R-Stat" min="0" max="1" step="0.01" value="1.0">
+                    <span class="slider-label">STATIC</span>
+                    <span class="slider-val" id="val-R-Stat">100%</span>
+                </div>
             </div>
         </div>
     </div>
