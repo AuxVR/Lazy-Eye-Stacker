@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Lazy Eye Stacker</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <style>
+        body { 
+            margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; 
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
+            color: white; display: flex; justify-content: center; align-items: center; height: 100vh;
+        }
+        canvas[data-engine="three.js"] { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0; pointer-events: none; }
+
+        /* --- DASHBOARD --- */
+        #dashboard {
+            display: flex; gap: 20px; background: rgba(20, 20, 20, 0.85);
+            backdrop-filter: blur(15px); padding: 40px; border-radius: 20px;
+            border: 1px solid #444; box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+        }
+        .column { display: flex; flex-direction: column; align-items: center; min-width: 180px; }
+        .column-center { justify-content: center; width: 260px; border-left: 1px solid #333; border-right: 1px solid #333; padding: 0 30px; }
+        
+        h1 { margin: 0; font-size: 26px; color: #00dfff; text-transform: uppercase; letter-spacing: 3px; text-align: center; line-height: 1.2; }
+        h2 { margin: 10px 0 20px 0; font-size: 12px; color: #888; font-weight: normal; text-transform: uppercase; letter-spacing: 2px; }
+        h3 { font-size: 14px; color: #fff; margin: 0 0 15px 0; text-transform: uppercase; letter-spacing: 1px; }
+
+        .preview-box { background: #000; border: 2px solid #555; border-radius: 6px; margin-bottom: 25px; position: relative; }
+        .preview-canvas { display: block; }
+        
+        .score-container { display: flex; gap: 15px; margin-bottom: 20px; width: 100%; justify-content: center; }
+        .score-box { background: #111; border: 1px solid #333; border-radius: 6px; padding: 10px; text-align: center; width: 90px; }
+        .score-label { font-size: 9px; color: #888; letter-spacing: 1px; margin-bottom: 2px; }
+        .score-value { font-size: 16px; color: #fff; font-weight: bold; }
+        .score-value.high { color: #ffd700; }
+        
+        #tspin-msg { position: absolute; top: -30px; width: 100%; text-align: center; color: #ff00ff; font-weight: bold; font-size: 14px; opacity: 0; transition: opacity 0.3s; }
+
+        .hold-container { margin-bottom: 20px; text-align: center; }
+        .hold-label { font-size: 10px; color: #aaa; margin-bottom: 5px; letter-spacing: 1px; font-weight: bold; }
+        #canvasHold { background: #111; border: 1px solid #444; border-radius: 4px; display: block; margin: 0 auto; }
+
+        .slider-group { display: flex; gap: 30px; justify-content: center; height: 160px; margin-top: 10px; }
+        .v-slider-wrapper { display: flex; flex-direction: column; align-items: center; height: 100%; }
+        input[type=range].v-slider { -webkit-appearance: none; width: 130px; height: 6px; background: #333; outline: none; border-radius: 3px; transform: rotate(-90deg); transform-origin: center; margin: auto; cursor: pointer; }
+        input[type=range].v-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #00dfff; cursor: pointer; border: 2px solid #fff; box-shadow: 0 0 10px rgba(0,223,255,0.5); }
+        .slider-label { margin-top: 15px; font-size: 10px; color: #666; font-weight: bold; letter-spacing: 1px; }
+        .slider-val { font-size: 11px; color: #00dfff; margin-bottom: -55px; z-index: 2; font-weight: bold; }
+
+        .control-row { width: 100%; margin-bottom: 15px; text-align: center; }
+        input[type=range].h-slider { width: 100%; -webkit-appearance: none; height: 6px; background: #333; border-radius: 3px; }
+        input[type=range].h-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff; cursor: pointer; }
+        
+        button.btn { background: #333; color: white; border: 1px solid #555; padding: 10px 20px; font-size: 12px; font-weight: bold; cursor: pointer; border-radius: 6px; width: 100%; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; }
+        button.btn:hover { background: #444; }
+        
+        .env-active { border-color: #00dfff; color: #00dfff; }
+
+        #vr-btn-container button { background: #00dfff !important; color: #000 !important; border: none !important; width: 100% !important; padding: 12px !important; font-size: 13px !important; font-weight: bold !important; border-radius: 6px !important; text-transform: uppercase !important; letter-spacing: 1px !important; position: static !important; opacity: 1 !important; margin-top: 10px; }
+        #vr-btn-container button:hover { transform: scale(1.02); box-shadow: 0 0 15px rgba(0, 223, 255, 0.4); }
+        .instructions { font-size: 11px; color: #555; margin-top: 20px; line-height: 1.6; text-align: left; }
+    </style>
+</head>
+<body>
+
+    <div id="dashboard">
+        <div class="column">
+            <h3>Left Eye</h3>
+            <div class="preview-box"><canvas id="canvasL" class="preview-canvas" width="130" height="260"></canvas></div>
+            <div class="slider-group">
+                <div class="v-slider-wrapper"><span class="slider-val" id="val-L-Fall">100%</span><input type="range" class="v-slider" id="slider-L-Fall" min="0" max="1" step="0.01" value="1.0"><span class="slider-label">FALLING</span></div>
+                <div class="v-slider-wrapper"><span class="slider-val" id="val-L-Stat">10%</span><input type="range" class="v-slider" id="slider-L-Stat" min="0" max="1" step="0.01" value="0.1"><span class="slider-label">STATIC</span></div>
+            </div>
+        </div>
+
+        <div class="column column-center">
+            <h1>Lazy Eye<br>Stacker</h1>
+            <h2>Vision Therapy</h2>
+            
+            <div class="score-container" style="position: relative;">
+                <div id="tspin-msg">T-SPIN!</div>
+                <div class="score-box"><div class="score-label">SCORE</div><div class="score-value" id="uiScore">0</div></div>
+                <div class="score-box"><div class="score-label">BEST</div><div class="score-value high" id="uiHigh">0</div></div>
+            </div>
+
+            <div class="hold-container"><div class="hold-label">HOLD (CTRL)</div><canvas id="canvasHold" width="60" height="40"></canvas></div>
+            
+            <div class="control-row">
+                <label style="font-size:10px; display:block; margin-bottom:5px; color:#888;">DISTANCE</label>
+                <input type="range" class="h-slider" id="distSlider" min="0.5" max="10.0" step="0.1" value="2.0">
+                <div id="distVal" style="font-size:12px; margin-top:5px; color:#00dfff;">2.0m</div>
+            </div>
+
+            <div class="control-row">
+                <button id="toggleEnv" class="btn">Env: Dark Void</button>
+            </div>
+            
+            <div class="control-row">
+                <button id="recenter" class="btn">Recenter Board</button>
+            </div>
+
+            <div id="vr-btn-container" class="control-row"></div>
+
+            <div class="instructions">
+                • <b>Env Button:</b> Void / Grid / Green / AR<br>
+                • <b>Green:</b> VD Chroma Key<br>
+                • <b>AR:</b> Native Passthrough<br>
+                • Arrows Move | Space Drop | Ctrl Hold
+            </div>
+        </div>
+
+        <div class="column">
+            <h3>Right Eye</h3>
+            <div class="preview-box"><canvas id="canvasR" class="preview-canvas" width="130" height="260"></canvas></div>
+            <div class="slider-group">
+                <div class="v-slider-wrapper"><span class="slider-val" id="val-R-Fall">10%</span><input type="range" class="v-slider" id="slider-R-Fall" min="0" max="1" step="0.01" value="0.1"><span class="slider-label">FALLING</span></div>
+                <div class="v-slider-wrapper"><span class="slider-val" id="val-R-Stat">100%</span><input type="range" class="v-slider" id="slider-R-Stat" min="0" max="1" step="0.01" value="1.0"><span class="slider-label">STATIC</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { VRButton } from 'three/addons/webxr/VRButton.js';
+
+        // --- STATE & SETTINGS ---
+        const settings = { distance: 2.0, opacity: { leftFall: 1.0, leftStat: 0.1, rightFall: 0.1, rightStat: 1.0 } };
+        const LAYER_L = 1, LAYER_R = 2;
+        const SHAPES = [ [[1, 1, 1, 1]], [[1, 1], [1, 1]], [[0, 1, 0], [1, 1, 1]], [[1, 0, 0], [1, 1, 1]], [[0, 0, 1], [1, 1, 1]], [[0, 1, 1], [1, 1, 0]], [[1, 1, 0], [0, 1, 1]] ];
+        const COLORS = [0x00ffff, 0xffff00, 0xff00ff, 0x00ff00, 0xff0000, 0x3366ff, 0xff7f00];
+        const COLORS_CSS = ['#00ffff', '#ffff00', '#ff00ff', '#00ff00', '#ff0000', '#3366ff', '#ff7f00'];
+
+        // --- THREE.JS SETUP ---
+        const scene = new THREE.Scene(); 
+        scene.background = new THREE.Color(0x050505);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setPixelRatio(window.devicePixelRatio); renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.xr.enabled = true; renderer.domElement.setAttribute("data-engine", "three.js");
+        document.body.appendChild(renderer.domElement);
+
+        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 1.6, 4.0);
+
+        const vrButtonDOM = VRButton.createButton(renderer);
+        document.getElementById('vr-btn-container').appendChild(vrButtonDOM);
+        vrButtonDOM.style.cssText = ""; 
+
+        // --- ENVIRONMENT LOGIC ---
+        let envMode = 0; // 0=Void, 1=Grid, 2=Green(VD), 3=Trans(AR)
+        const envGroup = new THREE.Group();
+        scene.add(envGroup);
+
+        const gridHelper = new THREE.GridHelper(40, 40, 0x00dfff, 0x222222);
+        gridHelper.position.y = -2; 
+        envGroup.add(gridHelper);
+
+        const partGeo = new THREE.BufferGeometry();
+        const partCount = 500;
+        const posArray = new Float32Array(partCount * 3);
+        for(let i=0; i<partCount*3; i++) { posArray[i] = (Math.random() - 0.5) * 40; }
+        partGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const partMat = new THREE.PointsMaterial({ size: 0.05, color: 0x00dfff, transparent: true, opacity: 0.6 });
+        const particles = new THREE.Points(partGeo, partMat);
+        envGroup.add(particles);
+
+        function updateEnvironment() {
+            const btn = document.getElementById('toggleEnv');
+            if (envMode === 0) { // VOID
+                scene.background = new THREE.Color(0x050505);
+                envGroup.visible = false;
+                btn.innerText = "Env: Dark Void";
+                btn.classList.remove('env-active');
+            } else if (envMode === 1) { // GRID
+                scene.background = new THREE.Color(0x050510);
+                envGroup.visible = true;
+                btn.innerText = "Env: Cyber Grid";
+                btn.classList.add('env-active');
+            } else if (envMode === 2) { // VD GREEN
+                scene.background = new THREE.Color(0x00ff00);
+                envGroup.visible = false;
+                btn.innerText = "Env: VD Green Screen";
+                btn.classList.add('env-active');
+            } else { // NATIVE AR
+                scene.background = null;
+                envGroup.visible = false;
+                btn.innerText = "Env: Native AR (Trans)";
+                btn.classList.add('env-active');
+            }
+        }
+        updateEnvironment();
+
+        document.getElementById('toggleEnv').onclick = () => {
+            envMode = (envMode + 1) % 4; 
+            updateEnvironment();
+        };
+
+        // --- PREVIEW ---
+        const cvsL = document.getElementById('canvasL'), ctxL = cvsL.getContext('2d');
+        const cvsR = document.getElementById('canvasR'), ctxR = cvsR.getContext('2d');
+        const cvsH = document.getElementById('canvasHold'), ctxH = cvsH.getContext('2d');
+        const P_BLOCK = cvsL.width / 10, H_BLOCK = 10; 
+
+        const BOARD_W = 10, BOARD_H = 20, BLOCK_SIZE = 0.12; 
+        let score = 0, highScore = localStorage.getItem('dichoptic_stacker_hs') || 0;
+        document.getElementById('uiHigh').innerText = highScore;
+
+        // --- GAME OBJECTS ---
+        const gameContainer = new THREE.Group();
+        const boardPixelHeight = BOARD_H * BLOCK_SIZE;
+        const boardPixelWidth = BOARD_W * BLOCK_SIZE;
+        gameContainer.position.set(0, 1.6 - (boardPixelHeight/2), -settings.distance);
+        scene.add(gameContainer);
+
+        // LIGHTING UPDATE: Overhead and Behind
+        const light = new THREE.DirectionalLight(0xffffff, 1.5);
+        light.position.set(0, 8, 5); 
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0x505050));
+
+        const activeGroupL = new THREE.Group(); activeGroupL.layers.set(LAYER_L);
+        const activeGroupR = new THREE.Group(); activeGroupR.layers.set(LAYER_R);
+        const staticGroupL = new THREE.Group(); staticGroupL.layers.set(LAYER_L);
+        const staticGroupR = new THREE.Group(); staticGroupR.layers.set(LAYER_R);
+        gameContainer.add(activeGroupL, activeGroupR, staticGroupL, staticGroupR);
+
+        // 3D HOLD CONTAINER
+        const holdGroup = new THREE.Group();
+        // Position Left of board. Board half width is approx 0.6m. 
+        // We put Hold box at x = -0.9m
+        holdGroup.position.set(-0.9, boardPixelHeight - 0.2, 0); 
+        gameContainer.add(holdGroup);
+
+        // Hold Frame (Wireframe box)
+        const holdFrameSize = BLOCK_SIZE * 4; 
+        const holdFrame = new THREE.Mesh(
+            new THREE.BoxGeometry(holdFrameSize, holdFrameSize, BLOCK_SIZE), 
+            new THREE.MeshBasicMaterial({ color: 0x444444, wireframe: true })
+        );
+        holdGroup.add(holdFrame);
+
+        // Hold Label (Canvas Texture)
+        const holdTextCanvas = document.createElement('canvas'); holdTextCanvas.width=128; holdTextCanvas.height=64;
+        const hCtx = holdTextCanvas.getContext('2d');
+        hCtx.fillStyle = '#00dfff'; hCtx.font = 'bold 30px Arial'; hCtx.textAlign = 'center'; hCtx.fillText("HOLD", 64, 40);
+        const holdTextTex = new THREE.CanvasTexture(holdTextCanvas);
+        const holdTextPlane = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.2), new THREE.MeshBasicMaterial({ map: holdTextTex, transparent: true }));
+        holdTextPlane.position.set(0, holdFrameSize/2 + 0.15, 0);
+        holdGroup.add(holdTextPlane);
+
+        // Group to store the actual blocks inside the hold frame
+        const holdBlockGroup = new THREE.Group();
+        holdGroup.add(holdBlockGroup);
+
+        // Main Board Frame
+        const laneGeo = new THREE.PlaneGeometry(BLOCK_SIZE, boardPixelHeight);
+        for (let x = 0; x < BOARD_W; x++) {
+            const color = x % 2 === 0 ? 0x222222 : 0x333333;
+            const laneMesh = new THREE.Mesh(laneGeo, new THREE.MeshLambertMaterial({ color: color }));
+            laneMesh.position.set((x * BLOCK_SIZE) - (boardPixelWidth/2) + (BLOCK_SIZE/2), boardPixelHeight/2, -BLOCK_SIZE/2 - 0.01);
+            laneMesh.layers.set(0); gameContainer.add(laneMesh);
+        }
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(boardPixelWidth+0.02, boardPixelHeight+0.02, 0.01), new THREE.MeshBasicMaterial({ color: 0x444444, wireframe: true }));
+        frame.position.set(0, boardPixelHeight/2, -BLOCK_SIZE/2); frame.layers.set(0); gameContainer.add(frame);
+
+        const scoreCanvas = document.createElement('canvas'); scoreCanvas.width = 512; scoreCanvas.height = 128;
+        const scoreCtx = scoreCanvas.getContext('2d');
+        const scoreTexture = new THREE.CanvasTexture(scoreCanvas);
+        const scoreMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.3), new THREE.MeshBasicMaterial({ map: scoreTexture, transparent: true }));
+        scoreMesh.position.set(0, boardPixelHeight + 0.25, 0); scoreMesh.layers.set(0); gameContainer.add(scoreMesh);
+
+        function showTSpinMessage() {
+            const msg = document.getElementById('tspin-msg');
+            msg.style.opacity = 1; setTimeout(() => msg.style.opacity = 0, 1500);
+        }
+
+        function updateScoreDisplay() {
+            scoreCtx.clearRect(0, 0, 512, 128);
+            scoreCtx.fillStyle = 'rgba(0,0,0,0.7)'; scoreCtx.fillRect(0,0,512,128);
+            scoreCtx.fillStyle = '#00dfff'; scoreCtx.font = 'bold 50px Arial';
+            scoreCtx.textAlign = 'center'; scoreCtx.textBaseline = 'middle';
+            scoreCtx.fillText(`SCORE: ${score}`, 256, 64);
+            scoreTexture.needsUpdate = true;
+            document.getElementById('uiScore').innerText = score;
+            if (score > highScore) { highScore = score; localStorage.setItem('dichoptic_stacker_hs', highScore); document.getElementById('uiHigh').innerText = highScore; }
+        }
+        updateScoreDisplay();
+
+        let boardGrid = Array(BOARD_H).fill().map(() => Array(BOARD_W).fill(0));
+        let currentPiece = { shape: [], x: 0, y: 0, color: 0xffffff, colorIdx: 0 };
+        let holdPieceIdx = -1, canHold = true, bag = [];
+        let lastMoveWasRotation = false;
+
+        function getNextPieceIdx() {
+            if (bag.length === 0) {
+                bag = [0,1,2,3,4,5,6];
+                for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]]; }
+            }
+            return bag.pop();
+        }
+
+        function spawnPiece(typeIdx = -1) {
+            const idx = typeIdx === -1 ? getNextPieceIdx() : typeIdx;
+            currentPiece.shape = SHAPES[idx]; currentPiece.color = COLORS[idx]; currentPiece.colorIdx = idx;
+            currentPiece.x = Math.floor(BOARD_W/2) - Math.floor(currentPiece.shape[0].length/2);
+            currentPiece.y = BOARD_H - 1;
+            canHold = true; lastMoveWasRotation = false;
+            if (collision(0, 0, currentPiece.shape)) {
+                score = 0; updateScoreDisplay(); boardGrid = Array(BOARD_H).fill().map(() => Array(BOARD_W).fill(0));
+                activeGroupL.clear(); activeGroupR.clear(); staticGroupL.clear(); staticGroupR.clear();
+                holdPieceIdx = -1; update3DHold(); drawHold(); bag = [];
+            }
+            updateActiveMesh();
+        }
+
+        function holdPiece() {
+            if (!canHold) return;
+            const currentIdx = currentPiece.colorIdx;
+            if (holdPieceIdx === -1) { holdPieceIdx = currentIdx; spawnPiece(); } 
+            else { const temp = holdPieceIdx; holdPieceIdx = currentIdx; spawnPiece(temp); }
+            canHold = false; 
+            drawHold();
+            update3DHold();
+        }
+
+        // --- 3D HOLD UPDATE ---
+        function update3DHold() {
+            holdBlockGroup.clear();
+            if (holdPieceIdx === -1) return;
+
+            const shape = SHAPES[holdPieceIdx];
+            const color = COLORS[holdPieceIdx];
+            const geo = new THREE.BoxGeometry(BLOCK_SIZE*0.95, BLOCK_SIZE*0.95, BLOCK_SIZE*0.95);
+            const mat = new THREE.MeshStandardMaterial({ color: color });
+
+            // Calculate centering offset
+            const width = shape[0].length * BLOCK_SIZE;
+            const height = shape.length * BLOCK_SIZE;
+            const offsetX = -width / 2 + (BLOCK_SIZE/2);
+            const offsetY = height / 2 - (BLOCK_SIZE/2);
+
+            shape.forEach((row, y) => {
+                row.forEach((val, x) => {
+                    if (val) {
+                        const mesh = new THREE.Mesh(geo, mat);
+                        // Grid y goes down, 3D y goes up
+                        mesh.position.set(offsetX + x*BLOCK_SIZE, offsetY - y*BLOCK_SIZE, 0);
+                        mesh.layers.set(0); // Visible to both eyes
+                        holdBlockGroup.add(mesh);
+                    }
+                });
+            });
+        }
+
+        function createDualMeshes(color) {
+            const geo = new THREE.BoxGeometry(BLOCK_SIZE*0.95, BLOCK_SIZE*0.95, BLOCK_SIZE*0.95);
+            const mL = new THREE.MeshStandardMaterial({ color: color, transparent: true });
+            const mR = new THREE.MeshStandardMaterial({ color: color, transparent: true });
+            const meshL = new THREE.Mesh(geo, mL); const meshR = new THREE.Mesh(geo, mR);
+            meshL.layers.set(LAYER_L); meshR.layers.set(LAYER_R);
+            return { meshL, meshR };
+        }
+
+        function updateActiveMesh() {
+            activeGroupL.clear(); activeGroupR.clear();
+            currentPiece.shape.forEach((row, dy) => {
+                row.forEach((val, dx) => {
+                    if (val) {
+                        const { meshL, meshR } = createDualMeshes(currentPiece.color);
+                        meshL.material.opacity = settings.opacity.leftFall; meshR.material.opacity = settings.opacity.rightFall;
+                        const vx = (currentPiece.x + dx) * BLOCK_SIZE - (boardPixelWidth/2) + (BLOCK_SIZE/2);
+                        const vy = (currentPiece.y - dy) * BLOCK_SIZE;
+                        meshL.position.set(vx, vy, 0); meshR.position.set(vx, vy, 0);
+                        activeGroupL.add(meshL); activeGroupR.add(meshR);
+                    }
+                });
+            });
+        }
+
+        function addToStaticStack() {
+            currentPiece.shape.forEach((row, dy) => {
+                row.forEach((val, dx) => {
+                    if (val) {
+                        const bx = currentPiece.x + dx; const by = currentPiece.y - dy;
+                        if (by >= 0 && by < BOARD_H) {
+                            boardGrid[by][bx] = currentPiece.colorIdx + 1;
+                            const { meshL, meshR } = createDualMeshes(currentPiece.color);
+                            meshL.material.opacity = settings.opacity.leftStat; meshR.material.opacity = settings.opacity.rightStat;
+                            meshL.position.set(bx * BLOCK_SIZE - (boardPixelWidth/2) + (BLOCK_SIZE/2), by * BLOCK_SIZE, 0);
+                            meshR.position.copy(meshL.position);
+                            staticGroupL.add(meshL); staticGroupR.add(meshR);
+                        }
+                    }
+                });
+            });
+            clearLines(); spawnPiece();
+        }
+
+        function collision(ox, oy, shape) {
+            for (let y = 0; y < shape.length; y++) {
+                for (let x = 0; x < shape[y].length; x++) {
+                    if (shape[y][x]) {
+                        const nx = currentPiece.x + x + ox; const ny = currentPiece.y - y + oy;
+                        if (nx < 0 || nx >= BOARD_W || ny < 0 || (ny < BOARD_H && boardGrid[ny][nx])) return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function rotate() {
+            const ns = currentPiece.shape[0].map((v, i) => currentPiece.shape.map(r => r[i]).reverse());
+            let kicked = false;
+            if (!collision(0, 0, ns)) { currentPiece.shape = ns; kicked = true; }
+            else if (!collision(1, 0, ns)) { currentPiece.x++; currentPiece.shape = ns; kicked = true; }
+            else if (!collision(-1, 0, ns)) { currentPiece.x--; currentPiece.shape = ns; kicked = true; }
+            else if (!collision(0, -1, ns)) { currentPiece.y--; currentPiece.shape = ns; kicked = true; }
+            if (kicked) { lastMoveWasRotation = true; updateActiveMesh(); }
+        }
+
+        function isTSpin() {
+            if (currentPiece.colorIdx !== 2) return false;
+            if (!lastMoveWasRotation) return false;
+            let cornersFilled = 0;
+            const corners = [[0,0], [2,0], [0,2], [2,2]];
+            corners.forEach(([cx, cy]) => {
+                const wx = currentPiece.x + cx; const wy = currentPiece.y - cy;
+                if (wx < 0 || wx >= BOARD_W || wy < 0 || (wy < BOARD_H && boardGrid[wy][wx])) cornersFilled++;
+            });
+            return cornersFilled >= 3;
+        }
+
+        function clearLines() {
+            let cleared = 0;
+            for (let y = 0; y < BOARD_H; y++) {
+                if (boardGrid[y].every(v => v !== 0)) { boardGrid.splice(y, 1); boardGrid.push(Array(BOARD_W).fill(0)); y--; cleared++; }
+            }
+            if (cleared > 0) {
+                let pts = 0;
+                if (isTSpin()) { showTSpinMessage(); pts = [0, 400, 1200, 1600][cleared] || 400; } 
+                else { pts = [0, 100, 300, 500, 800][cleared] || 1000; }
+                score += pts; updateScoreDisplay(); rebuildStatic();
+            }
+        }
+
+        function rebuildStatic() {
+            staticGroupL.clear(); staticGroupR.clear();
+            for (let y = 0; y < BOARD_H; y++) {
+                for (let x = 0; x < BOARD_W; x++) {
+                    if (boardGrid[y][x]) {
+                        const { meshL, meshR } = createDualMeshes(COLORS[boardGrid[y][x]-1]);
+                        meshL.material.opacity = settings.opacity.leftStat; meshR.material.opacity = settings.opacity.rightStat;
+                        meshL.position.set(x * BLOCK_SIZE - (boardPixelWidth/2) + (BLOCK_SIZE/2), y * BLOCK_SIZE, 0);
+                        meshR.position.copy(meshL.position);
+                        staticGroupL.add(meshL); staticGroupR.add(meshR);
+                    }
+                }
+            }
+        }
+        
+        function drawCanvas(ctx, fOp, sOp) {
+            ctx.fillStyle = '#050505'; ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            for(let x=0; x<10; x++) { if(x%2) { ctx.fillStyle = '#111'; ctx.fillRect(x*P_BLOCK, 0, P_BLOCK, ctx.canvas.height); } }
+            ctx.globalAlpha = sOp;
+            for(let y=0; y<BOARD_H; y++) {
+                for(let x=0; x<BOARD_W; x++) {
+                    if(boardGrid[y][x]) { ctx.fillStyle = COLORS_CSS[boardGrid[y][x]-1]; ctx.fillRect(x*P_BLOCK, (BOARD_H-1-y)*P_BLOCK, P_BLOCK-1, P_BLOCK-1); }
+                }
+            }
+            ctx.globalAlpha = fOp;
+            ctx.fillStyle = COLORS_CSS[currentPiece.colorIdx];
+            currentPiece.shape.forEach((row, dy) => {
+                row.forEach((v, dx) => { if(v) ctx.fillRect((currentPiece.x+dx)*P_BLOCK, (BOARD_H-1-(currentPiece.y-dy))*P_BLOCK, P_BLOCK-1, P_BLOCK-1); });
+            });
+            ctx.globalAlpha = 1.0;
+        }
+
+        function drawHold() {
+            ctxH.clearRect(0,0,cvsH.width, cvsH.height);
+            if (holdPieceIdx !== -1) {
+                const shape = SHAPES[holdPieceIdx]; ctxH.fillStyle = COLORS_CSS[holdPieceIdx];
+                const w = shape[0].length * H_BLOCK, h = shape.length * H_BLOCK;
+                const ox = (cvsH.width - w) / 2, oy = (cvsH.height - h) / 2;
+                shape.forEach((row, y) => { row.forEach((val, x) => { if(val) ctxH.fillRect(ox + x*H_BLOCK, oy + y*H_BLOCK, H_BLOCK-1, H_BLOCK-1); }); });
+            }
+        }
+
+        document.getElementById('slider-L-Fall').oninput = (e) => { settings.opacity.leftFall = e.target.value; document.getElementById('val-L-Fall').innerText = Math.round(e.target.value*100)+'%'; updateActiveMesh(); };
+        document.getElementById('slider-L-Stat').oninput = (e) => { settings.opacity.leftStat = e.target.value; document.getElementById('val-L-Stat').innerText = Math.round(e.target.value*100)+'%'; rebuildStatic(); };
+        document.getElementById('slider-R-Fall').oninput = (e) => { settings.opacity.rightFall = e.target.value; document.getElementById('val-R-Fall').innerText = Math.round(e.target.value*100)+'%'; updateActiveMesh(); };
+        document.getElementById('slider-R-Stat').oninput = (e) => { settings.opacity.rightStat = e.target.value; document.getElementById('val-R-Stat').innerText = Math.round(e.target.value*100)+'%'; rebuildStatic(); };
+        document.getElementById('distSlider').oninput = (e) => { settings.distance = e.target.value; document.getElementById('distVal').innerText = e.target.value+'m'; recenterGame(); };
+        document.getElementById('recenter').onclick = recenterGame;
+
+        function recenterGame() {
+            const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+            const angle = Math.atan2(dir.x, dir.z) + Math.PI;
+            gameContainer.rotation.set(0, angle, 0);
+            const cp = new THREE.Vector3(); camera.getWorldPosition(cp);
+            const fwd = new THREE.Vector3(); camera.getWorldDirection(fwd); fwd.y = 0; fwd.normalize();
+            gameContainer.position.copy(cp).add(fwd.multiplyScalar(settings.distance));
+            gameContainer.position.y = cp.y - (boardPixelHeight / 2);
+            gameContainer.lookAt(cp.x, gameContainer.position.y, cp.z);
+        }
+
+        const keys = { ArrowLeft: false, ArrowRight: false, ArrowDown: false };
+        let lastMove = 0, moveTimer = 0, isFirstMove = false, lastDrop = 0;
+        const DAS_DELAY = 130, ARR_RATE = 50;
+
+        window.onkeydown = (e) => {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyR', 'ControlLeft', 'ControlRight'].includes(e.code)) {
+                if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'BUTTON')) document.activeElement.blur();
+            }
+            if (e.code === 'ArrowUp') rotate();
+            if (e.code === 'Space') { while(!collision(0, -1, currentPiece.shape)) { currentPiece.y--; lastMoveWasRotation = false; } updateActiveMesh(); addToStaticStack(); }
+            if (e.code === 'KeyR') recenterGame();
+            if (e.code === 'ControlLeft' || e.code === 'ControlRight') holdPiece();
+            
+            if (['ArrowLeft', 'ArrowRight', 'ArrowDown'].includes(e.code)) {
+                if (!keys[e.code]) { keys[e.code] = true; isFirstMove = true; moveTimer = 0; handleMove(e.code); }
+            }
+        };
+        window.onkeyup = (e) => { if (keys[e.code] !== undefined) keys[e.code] = false; };
+
+        function handleMove(code) {
+            if (code === 'ArrowLeft' && !collision(-1, 0, currentPiece.shape)) { currentPiece.x--; lastMoveWasRotation = false; updateActiveMesh(); }
+            if (code === 'ArrowRight' && !collision(1, 0, currentPiece.shape)) { currentPiece.x++; lastMoveWasRotation = false; updateActiveMesh(); }
+            if (code === 'ArrowDown' && !collision(0, -1, currentPiece.shape)) { currentPiece.y--; lastMoveWasRotation = false; updateActiveMesh(); }
+        }
+
+        spawnPiece(); 
+        
+        renderer.setAnimationLoop((time) => {
+            if (time - lastDrop > 1000) { if (!collision(0, -1, currentPiece.shape)) { currentPiece.y--; lastMoveWasRotation=false; updateActiveMesh(); } else addToStaticStack(); lastDrop = time; }
+            
+            const delta = time - lastMove; lastMove = time;
+            ['ArrowLeft', 'ArrowRight', 'ArrowDown'].forEach(code => {
+                if (keys[code]) {
+                    if (isFirstMove) { moveTimer += delta; if (moveTimer > DAS_DELAY) { isFirstMove = false; moveTimer = 0; } }
+                    else { moveTimer += delta; if (moveTimer > ARR_RATE) { handleMove(code); moveTimer -= ARR_RATE; } }
+                }
+            });
+
+            drawCanvas(ctxL, settings.opacity.leftFall, settings.opacity.leftStat);
+            drawCanvas(ctxR, settings.opacity.rightFall, settings.opacity.rightStat);
+            const xr = renderer.xr;
+            if (xr.isPresenting) {
+                const xc = xr.getCamera();
+                if (xc.cameras.length === 2) {
+                    xc.cameras[0].layers.enable(0); xc.cameras[0].layers.enable(LAYER_L); xc.cameras[0].layers.disable(LAYER_R);
+                    xc.cameras[1].layers.enable(0); xc.cameras[1].layers.enable(LAYER_R); xc.cameras[1].layers.disable(LAYER_L);
+                }
+            }
+            renderer.render(scene, camera);
+        });
+        window.onresize = () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
+    </script>
+</body>
+</html>
